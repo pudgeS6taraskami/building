@@ -24,12 +24,17 @@ juce_add_plugin(LoFiPlugin
     NEEDS_MIDI_OUTPUT FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
+# Картинки, встроенные в плагин (BinaryData::background_png)
+juce_add_binary_data(LoFiAssets SOURCES Assets/background.png)
+set_target_properties(LoFiAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
 target_sources(LoFiPlugin PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp)
 
 target_link_libraries(LoFiPlugin
     PRIVATE
+        LoFiAssets
         juce::juce_audio_utils
         juce::juce_dsp
     PUBLIC
