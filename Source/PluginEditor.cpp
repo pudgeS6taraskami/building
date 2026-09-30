@@ -46,6 +46,15 @@ LoFiAudioProcessorEditor::LoFiAudioProcessorEditor (LoFiAudioProcessor& p)
     initKnob (drumsMix,    "drumsMix",    "MIX");
     initKnob (drumsOutput, "drumsOutput", "OUTPUT");
 
+    // --- ручки Keys ---
+    initKnob (keysWow,     "keysWow",     "WOW");
+    initKnob (keysFlutter, "keysFlutter", "FLUTTER");
+    initKnob (keysTape,    "keysTape",    "TAPE");
+    initKnob (keysDust,    "keysDust",    "DUST");
+    initKnob (keysChorus,  "keysChorus",  "CHORUS");
+    initKnob (keysMix,     "keysMix",     "MIX");
+    initKnob (keysOutput,  "keysOutput",  "OUTPUT");
+
     setSize (kWidth, kHeight);
     updateModeVisibility();
 }
@@ -103,8 +112,10 @@ void LoFiAudioProcessorEditor::setComboVisible (Combo& c, bool visible)
 
 void LoFiAudioProcessorEditor::updateModeVisibility()
 {
-    const bool drums = modeBox.box.getSelectedItemIndex() == 1;
-    const bool lofi  = ! drums;
+    const int  modeIndex = modeBox.box.getSelectedItemIndex();
+    const bool drums = modeIndex == 1;
+    const bool keys  = modeIndex == 2;
+    const bool lofi  = ! drums && ! keys;    // режим Space
 
     for (auto* k : { &bits, &downsample, &echoTime, &manualBpm, &echoFeedback, &echoLevel,
                      &reverbLength, &reverbLevel, &hp, &lp, &mono, &mix, &output })
@@ -112,6 +123,9 @@ void LoFiAudioProcessorEditor::updateModeVisibility()
 
     for (auto* k : { &crush, &crunch, &drumsMix, &drumsOutput })
         setKnobVisible (*k, drums);
+
+    for (auto* k : { &keysWow, &keysFlutter, &keysTape, &keysDust, &keysChorus, &keysMix, &keysOutput })
+        setKnobVisible (*k, keys);
 
     setComboVisible (syncBox, lofi);
     setComboVisible (divisionBox, lofi);
@@ -176,5 +190,14 @@ void LoFiAudioProcessorEditor::resized()
         Knob* ks[] = { &crush, &crunch, &drumsMix, &drumsOutput };
         for (int i = 0; i < 4; ++i)
             placeKnob (*ks[i], kWidth * (i + 1) / 5, y, size);
+    }
+
+    // ---------- Keys режим: 7 ручек в ряд ----------
+    {
+        const int size = 100;
+        const int y = 430;
+        Knob* ks[] = { &keysWow, &keysFlutter, &keysTape, &keysDust, &keysChorus, &keysMix, &keysOutput };
+        for (int i = 0; i < 7; ++i)
+            placeKnob (*ks[i], kWidth * (i + 1) / 8, y, size);
     }
 }

@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
 #include <algorithm>
+#include "KeysEffect.h"
 
 class LoFiAudioProcessor : public juce::AudioProcessor
 {
@@ -40,6 +41,7 @@ private:
 
     void processLoFi   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void processDrums  (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
+    void processKeys   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void resetLoFiState();
     void resetDrumsState();
 
@@ -115,7 +117,10 @@ private:
                        *pReverbLevel = nullptr, *pHp = nullptr, *pLp = nullptr,
                        *pMono = nullptr, *pMix = nullptr, *pOutput = nullptr,
                        *pDrumsCrush = nullptr, *pDrumsCrunch = nullptr,
-                       *pDrumsMix = nullptr, *pDrumsOutput = nullptr;
+                       *pDrumsMix = nullptr, *pDrumsOutput = nullptr,
+                       *pKeysWow = nullptr, *pKeysFlutter = nullptr, *pKeysTape = nullptr,
+                       *pKeysDust = nullptr, *pKeysChorus = nullptr,
+                       *pKeysMix = nullptr, *pKeysOutput = nullptr;
 
     double currentSampleRate = 44100.0;
     int lastMode = -1;
@@ -140,6 +145,9 @@ private:
     float dcX1[2] = { 0.0f, 0.0f };
     float dcY1[2] = { 0.0f, 0.0f };
     float toneLp[2] = { 0.0f, 0.0f };
+
+    // ---- Keys режим (вынесен в KeysEffect.h/.cpp) ----
+    KeysEffect keys;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessor)
 };

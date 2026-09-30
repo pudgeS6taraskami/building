@@ -47,6 +47,13 @@ LoFiAudioProcessor::LoFiAudioProcessor()
     pDrumsCrunch   = apvts.getRawParameterValue ("drumsCrunch");
     pDrumsMix      = apvts.getRawParameterValue ("drumsMix");
     pDrumsOutput   = apvts.getRawParameterValue ("drumsOutput");
+    pKeysWow       = apvts.getRawParameterValue ("keysWow");
+    pKeysFlutter   = apvts.getRawParameterValue ("keysFlutter");
+    pKeysTape      = apvts.getRawParameterValue ("keysTape");
+    pKeysDust      = apvts.getRawParameterValue ("keysDust");
+    pKeysChorus    = apvts.getRawParameterValue ("keysChorus");
+    pKeysMix       = apvts.getRawParameterValue ("keysMix");
+    pKeysOutput    = apvts.getRawParameterValue ("keysOutput");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createParameterLayout()
@@ -61,7 +68,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
 
     // --- Режим ---
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 1 }, "Mode",
-        juce::StringArray { "Lo-Fi", "Drums" }, 0));
+        juce::StringArray { "Space", "Drums", "Keys" }, 0));
 
     // --- Lo-fi ---
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bits", 1 }, "Bits",
@@ -114,6 +121,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "drumsMix", 1 }, "Drums Mix",
         NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "drumsOutput", 1 }, "Drums Output (dB)",
+        NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
+
+    // --- Keys ---
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysWow", 1 }, "Keys Wow",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysFlutter", 1 }, "Keys Flutter",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysTape", 1 }, "Keys Tape",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.4f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysDust", 1 }, "Keys Dust",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.15f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysChorus", 1 }, "Keys Chorus",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysMix", 1 }, "Keys Mix",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysOutput", 1 }, "Keys Output (dB)",
         NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
 
     return layout;
@@ -202,6 +225,8 @@ void LoFiAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     resetLoFiState();
     resetDrumsState();
+    keys.prepare (sampleRate);
+    keys.reset();
 
     wetBuf.setSize (2, juce::jmax (1, samplesPerBlock));
     revBuf.setSize (2, juce::jmax (1, samplesPerBlock));
@@ -230,19 +255,22 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     if (numCh == 0 || numSamples == 0)
         return;
 
-    const int mode = (int) std::round (pMode->load());
+    const int mode = juce::jlimit (0, 2, (int) std::round (pMode->load()));
 
     // при смене режима чистим состояние того режима, в который переходим,
     // чтобы старые "хвосты" не всплывали
     if (mode != lastMode)
     {
-        if (mode == 1) resetDrumsState();
-        else           resetLoFiState();
+        if (mode == 1)      resetDrumsState();
+        else if (mode == 2) keys.reset();
+        else                resetLoFiState();
         lastMode = mode;
     }
 
     if (mode == 1)
         processDrums (buffer, numCh, numSamples);
+    else if (mode == 2)
+        processKeys (buffer, numCh, numSamples);
     else
         processLoFi (buffer, numCh, numSamples);
 }
@@ -470,6 +498,21 @@ void LoFiAudioProcessor::processDrums (juce::AudioBuffer<float>& buffer, int num
             data[c][n] = (x * (1.0f - mix) + y * mix) * gain;
         }
     }
+}
+
+// ============================ KEYS РЕЖИМ ============================
+void LoFiAudioProcessor::processKeys (juce::AudioBuffer<float>& buffer, int numCh, int numSamples)
+{
+    KeysEffect::Params kp;
+    kp.wow      = pKeysWow->load();
+    kp.flutter  = pKeysFlutter->load();
+    kp.tape     = pKeysTape->load();
+    kp.dust     = pKeysDust->load();
+    kp.chorus   = pKeysChorus->load();
+    kp.mix      = pKeysMix->load();
+    kp.outputDb = pKeysOutput->load();
+
+    keys.process (buffer, numCh, numSamples, kp);
 }
 
 juce::AudioProcessorEditor* LoFiAudioProcessor::createEditor()
