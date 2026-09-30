@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
+#include <algorithm>
 
 class LoFiAudioProcessor : public juce::AudioProcessor
 {
@@ -37,6 +38,11 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     double getDelayTimeSeconds();
 
+    void processLoFi   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
+    void processDrums  (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
+    void resetLoFiState();
+    void resetDrumsState();
+
     // ---- простая линия задержки с интерполяцией ----
     struct Delay
     {
@@ -44,6 +50,7 @@ private:
         int writePos = 0;
 
         void prepare (int size) { buf.assign ((size_t) size, 0.0f); writePos = 0; }
+        void clear() { std::fill (buf.begin(), buf.end(), 0.0f); writePos = 0; }
 
         float read (float delaySamples) const
         {
@@ -100,34 +107,39 @@ private:
     };
 
     // указатели на параметры
-    std::atomic<float> *pBits = nullptr, *pDownsample = nullptr,
+    std::atomic<float> *pMode = nullptr,
+                       *pBits = nullptr, *pDownsample = nullptr,
                        *pEchoTime = nullptr, *pEchoSync = nullptr, *pEchoDivision = nullptr,
                        *pManualBpm = nullptr, *pEchoFeedback = nullptr, *pEchoPingPong = nullptr,
                        *pEchoLevel = nullptr, *pReverbType = nullptr, *pReverbLength = nullptr,
                        *pReverbLevel = nullptr, *pHp = nullptr, *pLp = nullptr,
-                       *pMono = nullptr, *pMix = nullptr, *pOutput = nullptr;
+                       *pMono = nullptr, *pMix = nullptr, *pOutput = nullptr,
+                       *pDrumsCrush = nullptr, *pDrumsCrunch = nullptr,
+                       *pDrumsMix = nullptr, *pDrumsOutput = nullptr;
 
     double currentSampleRate = 44100.0;
+    int lastMode = -1;
 
+    // ---- Lo-Fi режим ----
     juce::SmoothedValue<float> mixSmooth, outSmooth, delaySmooth, echoLevelSmooth, reverbLevelSmooth;
 
-    // lo-fi
     float held[2] = { 0.0f, 0.0f };
     int counter[2] = { 0, 0 };
 
-    // эхо
     Delay delays[2];
     float fbLp[2] = { 0.0f, 0.0f };
     float fbCoef = 0.3f;
 
-    // реверб
     juce::Reverb reverb;
-
-    // фильтры
     Biquad hp[2], lp[2];
-
-    // рабочие буферы
     juce::AudioBuffer<float> wetBuf, revBuf;
+
+    // ---- Drums режим ----
+    juce::SmoothedValue<float> drumsCrushSmooth, drumsCrunchSmooth, drumsMixSmooth, drumsOutSmooth;
+    float drumsEnv = 0.0f;
+    float dcX1[2] = { 0.0f, 0.0f };
+    float dcY1[2] = { 0.0f, 0.0f };
+    float toneLp[2] = { 0.0f, 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessor)
 };
