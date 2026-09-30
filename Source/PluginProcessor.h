@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
 
 class LoFiAudioProcessor : public juce::AudioProcessor
 {
@@ -27,9 +28,24 @@ public:
     const juce::String getProgramName (int) override { return {}; }
     void changeProgramName (int, const juce::String&) override {}
 
-    void getStateInformation (juce::MemoryBlock&) override {}
-    void setStateInformation (const void*, int) override {}
+    void getStateInformation (juce::MemoryBlock&) override;
+    void setStateInformation (const void*, int) override;
+
+    juce::AudioProcessorValueTreeState apvts;
 
 private:
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    std::atomic<float>* bitsParam       = nullptr;
+    std::atomic<float>* downsampleParam = nullptr;
+    std::atomic<float>* mixParam        = nullptr;
+    std::atomic<float>* outputParam     = nullptr;
+
+    juce::SmoothedValue<float> mixSmooth, outSmooth;
+
+    // состояние sample-rate reduction для каждого канала
+    std::array<float, 2> held { 0.0f, 0.0f };
+    std::array<int, 2> counter { 0, 0 };
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessor)
 };
