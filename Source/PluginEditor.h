@@ -60,5 +60,8 @@ private:
     // Bass режим
     Knob bassDrive, bassHarmonics, bassTone, bassSquash, bassSub, bassMix, bassOutput;
 
+    // Guitar режим
+    Knob guitarDrive, guitarTone, guitarTremolo, guitarRate, guitarWobble, guitarRoom, guitarMix, guitarOutput;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessorEditor)
 };

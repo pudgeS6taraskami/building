@@ -64,6 +64,16 @@ LoFiAudioProcessorEditor::LoFiAudioProcessorEditor (LoFiAudioProcessor& p)
     initKnob (bassMix,       "bassMix",       "MIX");
     initKnob (bassOutput,    "bassOutput",    "OUTPUT");
 
+    // --- ручки Guitar ---
+    initKnob (guitarDrive,   "guitarDrive",   "DRIVE");
+    initKnob (guitarTone,    "guitarTone",    "TONE");
+    initKnob (guitarTremolo, "guitarTremolo", "TREMOLO");
+    initKnob (guitarRate,    "guitarRate",    "RATE");
+    initKnob (guitarWobble,  "guitarWobble",  "WOBBLE");
+    initKnob (guitarRoom,    "guitarRoom",    "ROOM");
+    initKnob (guitarMix,     "guitarMix",     "MIX");
+    initKnob (guitarOutput,  "guitarOutput",  "OUTPUT");
+
     setSize (kWidth, kHeight);
     updateModeVisibility();
 }
@@ -125,7 +135,8 @@ void LoFiAudioProcessorEditor::updateModeVisibility()
     const bool drums = modeIndex == 1;
     const bool keys  = modeIndex == 2;
     const bool bassMode = modeIndex == 3;
-    const bool lofi  = ! drums && ! keys && ! bassMode;    // режим Space
+    const bool guitarMode = modeIndex == 4;
+    const bool lofi  = ! drums && ! keys && ! bassMode && ! guitarMode;    // режим Space
 
     for (auto* k : { &bits, &downsample, &echoTime, &manualBpm, &echoFeedback, &echoLevel,
                      &reverbLength, &reverbLevel, &hp, &lp, &mono, &mix, &output })
@@ -139,6 +150,10 @@ void LoFiAudioProcessorEditor::updateModeVisibility()
 
     for (auto* k : { &bassDrive, &bassHarmonics, &bassTone, &bassSquash, &bassSub, &bassMix, &bassOutput })
         setKnobVisible (*k, bassMode);
+
+    for (auto* k : { &guitarDrive, &guitarTone, &guitarTremolo, &guitarRate,
+                     &guitarWobble, &guitarRoom, &guitarMix, &guitarOutput })
+        setKnobVisible (*k, guitarMode);
 
     setComboVisible (syncBox, lofi);
     setComboVisible (divisionBox, lofi);
@@ -221,5 +236,15 @@ void LoFiAudioProcessorEditor::resized()
         Knob* ks[] = { &bassDrive, &bassHarmonics, &bassTone, &bassSquash, &bassSub, &bassMix, &bassOutput };
         for (int i = 0; i < 7; ++i)
             placeKnob (*ks[i], kWidth * (i + 1) / 8, y, size);
+    }
+
+    // ---------- Guitar режим: 8 ручек в ряд ----------
+    {
+        const int size = 90;
+        const int y = 430;
+        Knob* ks[] = { &guitarDrive, &guitarTone, &guitarTremolo, &guitarRate,
+                       &guitarWobble, &guitarRoom, &guitarMix, &guitarOutput };
+        for (int i = 0; i < 8; ++i)
+            placeKnob (*ks[i], kWidth * (i + 1) / 9, y, size);
     }
 }

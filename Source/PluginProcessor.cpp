@@ -61,6 +61,14 @@ LoFiAudioProcessor::LoFiAudioProcessor()
     pBassSub       = apvts.getRawParameterValue ("bassSub");
     pBassMix       = apvts.getRawParameterValue ("bassMix");
     pBassOutput    = apvts.getRawParameterValue ("bassOutput");
+    pGuitarDrive   = apvts.getRawParameterValue ("guitarDrive");
+    pGuitarTone    = apvts.getRawParameterValue ("guitarTone");
+    pGuitarTremolo = apvts.getRawParameterValue ("guitarTremolo");
+    pGuitarRate    = apvts.getRawParameterValue ("guitarRate");
+    pGuitarWobble  = apvts.getRawParameterValue ("guitarWobble");
+    pGuitarRoom    = apvts.getRawParameterValue ("guitarRoom");
+    pGuitarMix     = apvts.getRawParameterValue ("guitarMix");
+    pGuitarOutput  = apvts.getRawParameterValue ("guitarOutput");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createParameterLayout()
@@ -75,7 +83,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
 
     // --- Режим ---
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 1 }, "Mode",
-        juce::StringArray { "Space", "Drums", "Keys", "Bass" }, 0));
+        juce::StringArray { "Space", "Drums", "Keys", "Bass", "Guitar" }, 0));
 
     // --- Lo-fi ---
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bits", 1 }, "Bits",
@@ -160,6 +168,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassMix", 1 }, "Bass Mix",
         NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassOutput", 1 }, "Bass Output (dB)",
+        NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
+
+    // --- Guitar ---
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarDrive", 1 }, "Guitar Drive",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarTone", 1 }, "Guitar Tone",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.55f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarTremolo", 1 }, "Guitar Tremolo",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarRate", 1 }, "Guitar Trem Rate (Hz)",
+        NormalisableRange<float> (0.5f, 10.0f, 0.01f, 0.6f), 4.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarWobble", 1 }, "Guitar Wobble",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarRoom", 1 }, "Guitar Room",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarMix", 1 }, "Guitar Mix",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarOutput", 1 }, "Guitar Output (dB)",
         NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
 
     return layout;
@@ -252,6 +278,8 @@ void LoFiAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     keys.reset();
     bass.prepare (sampleRate);
     bass.reset();
+    guitar.prepare (sampleRate, samplesPerBlock);
+    guitar.reset();
 
     wetBuf.setSize (2, juce::jmax (1, samplesPerBlock));
     revBuf.setSize (2, juce::jmax (1, samplesPerBlock));
@@ -280,7 +308,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     if (numCh == 0 || numSamples == 0)
         return;
 
-    const int mode = juce::jlimit (0, 3, (int) std::round (pMode->load()));
+    const int mode = juce::jlimit (0, 4, (int) std::round (pMode->load()));
 
     // при смене режима чистим состояние того режима, в который переходим,
     // чтобы старые "хвосты" не всплывали
@@ -289,6 +317,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         if (mode == 1)      resetDrumsState();
         else if (mode == 2) keys.reset();
         else if (mode == 3) bass.reset();
+        else if (mode == 4) guitar.reset();
         else                resetLoFiState();
         lastMode = mode;
     }
@@ -299,6 +328,8 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         processKeys (buffer, numCh, numSamples);
     else if (mode == 3)
         processBass (buffer, numCh, numSamples);
+    else if (mode == 4)
+        processGuitar (buffer, numCh, numSamples);
     else
         processLoFi (buffer, numCh, numSamples);
 }
@@ -556,6 +587,22 @@ void LoFiAudioProcessor::processBass (juce::AudioBuffer<float>& buffer, int numC
     bp.outputDb  = pBassOutput->load();
 
     bass.process (buffer, numCh, numSamples, bp);
+}
+
+// ============================ GUITAR РЕЖИМ ============================
+void LoFiAudioProcessor::processGuitar (juce::AudioBuffer<float>& buffer, int numCh, int numSamples)
+{
+    GuitarEffect::Params gp;
+    gp.drive    = pGuitarDrive->load();
+    gp.tone     = pGuitarTone->load();
+    gp.tremolo  = pGuitarTremolo->load();
+    gp.rate     = pGuitarRate->load();
+    gp.wobble   = pGuitarWobble->load();
+    gp.room     = pGuitarRoom->load();
+    gp.mix      = pGuitarMix->load();
+    gp.outputDb = pGuitarOutput->load();
+
+    guitar.process (buffer, numCh, numSamples, gp);
 }
 
 juce::AudioProcessorEditor* LoFiAudioProcessor::createEditor()

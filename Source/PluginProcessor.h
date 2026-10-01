@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "KeysEffect.h"
 #include "BassEffect.h"
+#include "GuitarEffect.h"
 
 class LoFiAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +45,7 @@ private:
     void processDrums  (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void processKeys   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void processBass   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
+    void processGuitar (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void resetLoFiState();
     void resetDrumsState();
 
@@ -125,7 +127,10 @@ private:
                        *pKeysMix = nullptr, *pKeysOutput = nullptr,
                        *pBassDrive = nullptr, *pBassHarmonics = nullptr, *pBassTone = nullptr,
                        *pBassSquash = nullptr, *pBassSub = nullptr,
-                       *pBassMix = nullptr, *pBassOutput = nullptr;
+                       *pBassMix = nullptr, *pBassOutput = nullptr,
+                       *pGuitarDrive = nullptr, *pGuitarTone = nullptr, *pGuitarTremolo = nullptr,
+                       *pGuitarRate = nullptr, *pGuitarWobble = nullptr, *pGuitarRoom = nullptr,
+                       *pGuitarMix = nullptr, *pGuitarOutput = nullptr;
 
     double currentSampleRate = 44100.0;
     int lastMode = -1;
@@ -156,6 +161,9 @@ private:
 
     // ---- Bass режим (вынесен в BassEffect.h/.cpp) ----
     BassEffect bass;
+
+    // ---- Guitar режим (вынесен в GuitarEffect.h/.cpp) ----
+    GuitarEffect guitar;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessor)
 };
