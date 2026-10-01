@@ -55,6 +55,15 @@ LoFiAudioProcessorEditor::LoFiAudioProcessorEditor (LoFiAudioProcessor& p)
     initKnob (keysMix,     "keysMix",     "MIX");
     initKnob (keysOutput,  "keysOutput",  "OUTPUT");
 
+    // --- ручки Bass ---
+    initKnob (bassDrive,     "bassDrive",     "DRIVE");
+    initKnob (bassHarmonics, "bassHarmonics", "HARMONICS");
+    initKnob (bassTone,      "bassTone",      "TONE");
+    initKnob (bassSquash,    "bassSquash",    "SQUASH");
+    initKnob (bassSub,       "bassSub",       "SUB");
+    initKnob (bassMix,       "bassMix",       "MIX");
+    initKnob (bassOutput,    "bassOutput",    "OUTPUT");
+
     setSize (kWidth, kHeight);
     updateModeVisibility();
 }
@@ -115,7 +124,8 @@ void LoFiAudioProcessorEditor::updateModeVisibility()
     const int  modeIndex = modeBox.box.getSelectedItemIndex();
     const bool drums = modeIndex == 1;
     const bool keys  = modeIndex == 2;
-    const bool lofi  = ! drums && ! keys;    // режим Space
+    const bool bassMode = modeIndex == 3;
+    const bool lofi  = ! drums && ! keys && ! bassMode;    // режим Space
 
     for (auto* k : { &bits, &downsample, &echoTime, &manualBpm, &echoFeedback, &echoLevel,
                      &reverbLength, &reverbLevel, &hp, &lp, &mono, &mix, &output })
@@ -126,6 +136,9 @@ void LoFiAudioProcessorEditor::updateModeVisibility()
 
     for (auto* k : { &keysWow, &keysFlutter, &keysTape, &keysDust, &keysChorus, &keysMix, &keysOutput })
         setKnobVisible (*k, keys);
+
+    for (auto* k : { &bassDrive, &bassHarmonics, &bassTone, &bassSquash, &bassSub, &bassMix, &bassOutput })
+        setKnobVisible (*k, bassMode);
 
     setComboVisible (syncBox, lofi);
     setComboVisible (divisionBox, lofi);
@@ -197,6 +210,15 @@ void LoFiAudioProcessorEditor::resized()
         const int size = 100;
         const int y = 430;
         Knob* ks[] = { &keysWow, &keysFlutter, &keysTape, &keysDust, &keysChorus, &keysMix, &keysOutput };
+        for (int i = 0; i < 7; ++i)
+            placeKnob (*ks[i], kWidth * (i + 1) / 8, y, size);
+    }
+
+    // ---------- Bass режим: 7 ручек в ряд ----------
+    {
+        const int size = 100;
+        const int y = 430;
+        Knob* ks[] = { &bassDrive, &bassHarmonics, &bassTone, &bassSquash, &bassSub, &bassMix, &bassOutput };
         for (int i = 0; i < 7; ++i)
             placeKnob (*ks[i], kWidth * (i + 1) / 8, y, size);
     }

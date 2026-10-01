@@ -57,5 +57,8 @@ private:
     // Keys режим
     Knob keysWow, keysFlutter, keysTape, keysDust, keysChorus, keysMix, keysOutput;
 
+    // Bass режим
+    Knob bassDrive, bassHarmonics, bassTone, bassSquash, bassSub, bassMix, bassOutput;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessorEditor)
 };

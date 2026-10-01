@@ -18,7 +18,7 @@ juce_add_plugin(LoFiPlugin
     PLUGIN_MANUFACTURER_CODE Lofi
     PLUGIN_CODE Lf01
     FORMATS VST3
-    PRODUCT_NAME "Lo-Finizer"
+    PRODUCT_NAME "LoFi Machine"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
@@ -31,7 +31,8 @@ set_target_properties(LoFiAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_sources(LoFiPlugin PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
-    Source/KeysEffect.cpp)
+    Source/KeysEffect.cpp
+    Source/BassEffect.cpp)
 
 target_link_libraries(LoFiPlugin
     PRIVATE

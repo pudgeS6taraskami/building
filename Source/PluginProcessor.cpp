@@ -54,6 +54,13 @@ LoFiAudioProcessor::LoFiAudioProcessor()
     pKeysChorus    = apvts.getRawParameterValue ("keysChorus");
     pKeysMix       = apvts.getRawParameterValue ("keysMix");
     pKeysOutput    = apvts.getRawParameterValue ("keysOutput");
+    pBassDrive     = apvts.getRawParameterValue ("bassDrive");
+    pBassHarmonics = apvts.getRawParameterValue ("bassHarmonics");
+    pBassTone      = apvts.getRawParameterValue ("bassTone");
+    pBassSquash    = apvts.getRawParameterValue ("bassSquash");
+    pBassSub       = apvts.getRawParameterValue ("bassSub");
+    pBassMix       = apvts.getRawParameterValue ("bassMix");
+    pBassOutput    = apvts.getRawParameterValue ("bassOutput");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createParameterLayout()
@@ -68,7 +75,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
 
     // --- Режим ---
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 1 }, "Mode",
-        juce::StringArray { "Space", "Drums", "Keys" }, 0));
+        juce::StringArray { "Space", "Drums", "Keys", "Bass" }, 0));
 
     // --- Lo-fi ---
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bits", 1 }, "Bits",
@@ -137,6 +144,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysMix", 1 }, "Keys Mix",
         NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "keysOutput", 1 }, "Keys Output (dB)",
+        NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
+
+    // --- Bass ---
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassDrive", 1 }, "Bass Drive",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassHarmonics", 1 }, "Bass Harmonics",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassTone", 1 }, "Bass Tone",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.6f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassSquash", 1 }, "Bass Squash",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.4f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassSub", 1 }, "Bass Sub (dB)",
+        NormalisableRange<float> (-12.0f, 6.0f, 0.1f), 0.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassMix", 1 }, "Bass Mix",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bassOutput", 1 }, "Bass Output (dB)",
         NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
 
     return layout;
@@ -227,6 +250,8 @@ void LoFiAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     resetDrumsState();
     keys.prepare (sampleRate);
     keys.reset();
+    bass.prepare (sampleRate);
+    bass.reset();
 
     wetBuf.setSize (2, juce::jmax (1, samplesPerBlock));
     revBuf.setSize (2, juce::jmax (1, samplesPerBlock));
@@ -255,7 +280,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     if (numCh == 0 || numSamples == 0)
         return;
 
-    const int mode = juce::jlimit (0, 2, (int) std::round (pMode->load()));
+    const int mode = juce::jlimit (0, 3, (int) std::round (pMode->load()));
 
     // при смене режима чистим состояние того режима, в который переходим,
     // чтобы старые "хвосты" не всплывали
@@ -263,6 +288,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     {
         if (mode == 1)      resetDrumsState();
         else if (mode == 2) keys.reset();
+        else if (mode == 3) bass.reset();
         else                resetLoFiState();
         lastMode = mode;
     }
@@ -271,6 +297,8 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         processDrums (buffer, numCh, numSamples);
     else if (mode == 2)
         processKeys (buffer, numCh, numSamples);
+    else if (mode == 3)
+        processBass (buffer, numCh, numSamples);
     else
         processLoFi (buffer, numCh, numSamples);
 }
@@ -513,6 +541,21 @@ void LoFiAudioProcessor::processKeys (juce::AudioBuffer<float>& buffer, int numC
     kp.outputDb = pKeysOutput->load();
 
     keys.process (buffer, numCh, numSamples, kp);
+}
+
+// ============================ BASS РЕЖИМ ============================
+void LoFiAudioProcessor::processBass (juce::AudioBuffer<float>& buffer, int numCh, int numSamples)
+{
+    BassEffect::Params bp;
+    bp.drive     = pBassDrive->load();
+    bp.harmonics = pBassHarmonics->load();
+    bp.tone      = pBassTone->load();
+    bp.squash    = pBassSquash->load();
+    bp.subDb     = pBassSub->load();
+    bp.mix       = pBassMix->load();
+    bp.outputDb  = pBassOutput->load();
+
+    bass.process (buffer, numCh, numSamples, bp);
 }
 
 juce::AudioProcessorEditor* LoFiAudioProcessor::createEditor()
