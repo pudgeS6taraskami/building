@@ -5,6 +5,7 @@
 #include "KeysEffect.h"
 #include "BassEffect.h"
 #include "GuitarEffect.h"
+#include "ViolinEffect.h"
 
 class LoFiAudioProcessor : public juce::AudioProcessor
 {
@@ -46,6 +47,7 @@ private:
     void processKeys   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void processBass   (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void processGuitar (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
+    void processViolin (juce::AudioBuffer<float>& buffer, int numCh, int numSamples);
     void resetLoFiState();
     void resetDrumsState();
 
@@ -130,7 +132,10 @@ private:
                        *pBassMix = nullptr, *pBassOutput = nullptr,
                        *pGuitarDrive = nullptr, *pGuitarTone = nullptr, *pGuitarTremolo = nullptr,
                        *pGuitarRate = nullptr, *pGuitarWobble = nullptr, *pGuitarRoom = nullptr,
-                       *pGuitarMix = nullptr, *pGuitarOutput = nullptr;
+                       *pGuitarMix = nullptr, *pGuitarOutput = nullptr,
+                       *pViolinSoften = nullptr, *pViolinWobble = nullptr, *pViolinEnsemble = nullptr,
+                       *pViolinTape = nullptr, *pViolinDust = nullptr, *pViolinHall = nullptr,
+                       *pViolinMix = nullptr, *pViolinOutput = nullptr;
 
     double currentSampleRate = 44100.0;
     int lastMode = -1;
@@ -164,6 +169,9 @@ private:
 
     // ---- Guitar режим (вынесен в GuitarEffect.h/.cpp) ----
     GuitarEffect guitar;
+
+    // ---- Violin режим (вынесен в ViolinEffect.h/.cpp) ----
+    ViolinEffect violin;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessor)
 };

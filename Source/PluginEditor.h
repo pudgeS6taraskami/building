@@ -63,5 +63,8 @@ private:
     // Guitar режим
     Knob guitarDrive, guitarTone, guitarTremolo, guitarRate, guitarWobble, guitarRoom, guitarMix, guitarOutput;
 
+    // Violin режим
+    Knob violinSoften, violinWobble, violinEnsemble, violinTape, violinDust, violinHall, violinMix, violinOutput;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoFiAudioProcessorEditor)
 };

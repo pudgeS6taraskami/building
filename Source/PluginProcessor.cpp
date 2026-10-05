@@ -69,6 +69,14 @@ LoFiAudioProcessor::LoFiAudioProcessor()
     pGuitarRoom    = apvts.getRawParameterValue ("guitarRoom");
     pGuitarMix     = apvts.getRawParameterValue ("guitarMix");
     pGuitarOutput  = apvts.getRawParameterValue ("guitarOutput");
+    pViolinSoften   = apvts.getRawParameterValue ("violinSoften");
+    pViolinWobble   = apvts.getRawParameterValue ("violinWobble");
+    pViolinEnsemble = apvts.getRawParameterValue ("violinEnsemble");
+    pViolinTape     = apvts.getRawParameterValue ("violinTape");
+    pViolinDust     = apvts.getRawParameterValue ("violinDust");
+    pViolinHall     = apvts.getRawParameterValue ("violinHall");
+    pViolinMix      = apvts.getRawParameterValue ("violinMix");
+    pViolinOutput   = apvts.getRawParameterValue ("violinOutput");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createParameterLayout()
@@ -83,7 +91,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
 
     // --- Режим ---
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 1 }, "Mode",
-        juce::StringArray { "Space", "Drums", "Keys", "Bass", "Guitar" }, 0));
+        juce::StringArray { "Space", "Drums", "Keys", "Bass", "Guitar", "Violin" }, 0));
 
     // --- Lo-fi ---
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "bits", 1 }, "Bits",
@@ -188,6 +196,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout LoFiAudioProcessor::createPa
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "guitarOutput", 1 }, "Guitar Output (dB)",
         NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
 
+    // --- Violin ---
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinSoften", 1 }, "Violin Soften",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.4f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinWobble", 1 }, "Violin Wobble",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.25f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinEnsemble", 1 }, "Violin Ensemble",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinTape", 1 }, "Violin Tape",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.3f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinDust", 1 }, "Violin Dust",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.12f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinHall", 1 }, "Violin Hall",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.35f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinMix", 1 }, "Violin Mix",
+        NormalisableRange<float> (0.0f, 1.0f, 0.01f), 1.0f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "violinOutput", 1 }, "Violin Output (dB)",
+        NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f));
+
     return layout;
 }
 
@@ -280,6 +306,8 @@ void LoFiAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     bass.reset();
     guitar.prepare (sampleRate, samplesPerBlock);
     guitar.reset();
+    violin.prepare (sampleRate, samplesPerBlock);
+    violin.reset();
 
     wetBuf.setSize (2, juce::jmax (1, samplesPerBlock));
     revBuf.setSize (2, juce::jmax (1, samplesPerBlock));
@@ -308,7 +336,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     if (numCh == 0 || numSamples == 0)
         return;
 
-    const int mode = juce::jlimit (0, 4, (int) std::round (pMode->load()));
+    const int mode = juce::jlimit (0, 5, (int) std::round (pMode->load()));
 
     // при смене режима чистим состояние того режима, в который переходим,
     // чтобы старые "хвосты" не всплывали
@@ -318,6 +346,7 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         else if (mode == 2) keys.reset();
         else if (mode == 3) bass.reset();
         else if (mode == 4) guitar.reset();
+        else if (mode == 5) violin.reset();
         else                resetLoFiState();
         lastMode = mode;
     }
@@ -330,6 +359,8 @@ void LoFiAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         processBass (buffer, numCh, numSamples);
     else if (mode == 4)
         processGuitar (buffer, numCh, numSamples);
+    else if (mode == 5)
+        processViolin (buffer, numCh, numSamples);
     else
         processLoFi (buffer, numCh, numSamples);
 }
@@ -603,6 +634,22 @@ void LoFiAudioProcessor::processGuitar (juce::AudioBuffer<float>& buffer, int nu
     gp.outputDb = pGuitarOutput->load();
 
     guitar.process (buffer, numCh, numSamples, gp);
+}
+
+// ============================ VIOLIN РЕЖИМ ============================
+void LoFiAudioProcessor::processViolin (juce::AudioBuffer<float>& buffer, int numCh, int numSamples)
+{
+    ViolinEffect::Params vp;
+    vp.soften   = pViolinSoften->load();
+    vp.wobble   = pViolinWobble->load();
+    vp.ensemble = pViolinEnsemble->load();
+    vp.tape     = pViolinTape->load();
+    vp.dust     = pViolinDust->load();
+    vp.hall     = pViolinHall->load();
+    vp.mix      = pViolinMix->load();
+    vp.outputDb = pViolinOutput->load();
+
+    violin.process (buffer, numCh, numSamples, vp);
 }
 
 juce::AudioProcessorEditor* LoFiAudioProcessor::createEditor()
